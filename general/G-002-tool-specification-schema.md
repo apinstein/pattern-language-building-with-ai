@@ -1,4 +1,4 @@
-# G-008: Tool Specification Schema
+# G-002: Tool Specification Schema
 
 **Status:** Draft
 **Type:** General
@@ -6,7 +6,7 @@
 **Importance:** **
 
 ## Context
-When an AI requires new capabilities, we build strongly constrained wrapper tools to prevent it from relying on open-ended destruction (as mandated by G-004). 
+When an AI requires new capabilities, we build strongly constrained wrapper tools to prevent it from relying on open-ended destruction (as mandated by G-001). 
 
 ## Problem
 If these bespoke tools are built ad-hoc, with ambiguous input expectations or sprawling scopes, the AI will use them incorrectly, waste context tokens guessing syntax, or induce the very silent failures the tool was meant to prevent.
@@ -26,4 +26,4 @@ When building a new constrained tool for the ecosystem, it must adhere to a stri
 By forcing a strict definition schema, the AI can effortlessly discover, understand, and rigidly apply the tool without expending inference cycles determining *how* the tool is intended to function.
 
 ## Related Patterns
-- **[G-004-strongly-constrained-tools.md]**: This pattern explicitly fulfills the mandate set by G-004 by defining *how* to build the constrained wrapper tools.
+- **[G-001-strongly-constrained-tools.md]**: This pattern explicitly fulfills the mandate set by G-001 by defining *how* to build the constrained wrapper tools.

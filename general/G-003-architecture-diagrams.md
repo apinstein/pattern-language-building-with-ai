@@ -1,4 +1,4 @@
-# G-001: Architecture Diagrams (LikeC4 vs Mermaid)
+# G-003: Architecture Diagrams (LikeC4 vs Mermaid)
 
 **Status:** Active
 **Type:** General

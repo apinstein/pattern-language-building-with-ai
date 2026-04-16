@@ -1,4 +1,4 @@
-# G-002: Pageable Wisdom and Context Management
+# G-020: Pageable Wisdom and Context Management
 
 **Status:** Active
 **Type:** General
@@ -28,4 +28,4 @@ By distributing wisdom across heavily indexed, modular files, the project builds
 
 ## Related Patterns
 - **[PHILOSOPHY]**: Adheres to the framework's core meta-guidelines.
-- **[G-001-architecture-diagrams.md]**: Applies the same division-of-concerns logic to documentation parsing as G-001 applies to architecture diagramming.
+- **[G-003-architecture-diagrams.md]**: Applies the same division-of-concerns logic to documentation parsing as G-003 applies to architecture diagramming.

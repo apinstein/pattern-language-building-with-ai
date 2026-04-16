@@ -1,4 +1,4 @@
-# G-009: Inline Verification Checklists
+# G-041: Inline Verification Checklists
 
 **Status:** Draft
 **Type:** General
@@ -6,7 +6,7 @@
 **Importance:** **
 
 ## Context
-During adversarial verification loops (mandated by G-006), the AI explicitly acts as a reviewer to catch its own mistakes.
+During adversarial verification loops (mandated by G-040), the AI explicitly acts as a reviewer to catch its own mistakes.
 
 ## Problem
 If an agent acts as a reviewer but is only given a generic "check for errors" prompt, it will suffer from the same confirmation bias as the generator, leading to superficial verification and "looks good to me" approvals over broken code.
@@ -26,4 +26,4 @@ Adversarial verification passes must be executed against explicit, concrete **In
 Verification shifts from an arbitrary, subjective "vibe check" into an objective structural audit. This completely short-circuits confirmation bias by forcing the AI to manually validate granular constraints individually before proceeding.
 
 ## Related Patterns
-- **[G-006-adversarial-verification.md]**: This pattern is the microscopic execution detail required to fulfill the macroscopic strategy defined by G-006.
+- **[G-040-adversarial-verification.md]**: This pattern is the microscopic execution detail required to fulfill the macroscopic strategy defined by G-040.

@@ -1,4 +1,4 @@
-# G-006: Adversarial Verification Loops
+# G-040: Adversarial Verification Loops
 
 **Status:** Active
 **Type:** General
@@ -27,4 +27,4 @@ Implement **Adversarial Multi-Step Verification Loops** and **Inline Standard Ch
 This structurally offsets AI overconfidence. It guarantees that high standards of correctness and maintainability (e.g., test coverage, DRY) act as a rigid gate before the AI successfully completes the iteration. 
 
 ## Related Patterns
-- **[G-005-tool-driven-correctness.md]**: Automated tooling serves as the objective foundation for the verification loop.
+- **[G-042-tool-driven-correctness.md]**: Automated tooling serves as the objective foundation for the verification loop.

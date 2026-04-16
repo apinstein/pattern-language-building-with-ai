@@ -1,4 +1,4 @@
-# G-003: Saliency and Conflict Resolution
+# G-021: Saliency and Conflict Resolution
 
 **Status:** Active
 **Type:** General
@@ -28,4 +28,4 @@ Instead of navigating a chaotic list of 1,000 equal-weight rules, the AI navigat
 
 ## Related Patterns
 - **[PHILOSOPHY]**: Provides the ultimate tie-breaker (Product > Technology) for conflict resolution.
-- **[G-002-pageable-wisdom.md]**: Saliency relies on the context-management principles defined in G-002, ensuring that only the relevant rules are paged into memory at any given time.
+- **[G-020-pageable-wisdom.md]**: Saliency relies on the context-management principles defined in G-020, ensuring that only the relevant rules are paged into memory at any given time.

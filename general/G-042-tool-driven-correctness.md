@@ -1,4 +1,4 @@
-# G-005: Tool-Driven Correctness
+# G-042: Tool-Driven Correctness
 
 **Status:** Active
 **Type:** General
@@ -28,5 +28,5 @@ Offload absolute truth to **Hard Harnessed Tools** with explicit, strict boundar
 The AI is relieved of the burden of maintaining perfect structural correctness in its own memory. It instead acts as the creative orchestrator, with the rigid tooling acting as the structural integrity test. Quality remains high, preventing technical debt from minor hallucinations.
 
 ## Related Patterns
-- **[G-004-strongly-constrained-tools.md]**: Building custom verification scripts or linting commands acts as the foundation for this pattern.
-- **[G-006-adversarial-verification.md]**: Automated tooling serves as the first objective baseline of an adversarial verification loop.
+- **[G-001-strongly-constrained-tools.md]**: Building custom verification scripts or linting commands acts as the foundation for this pattern.
+- **[G-040-adversarial-verification.md]**: Automated tooling serves as the first objective baseline of an adversarial verification loop.

@@ -1,4 +1,4 @@
-# G-004: Strongly Constrained Tools
+# G-001: Strongly Constrained Tools
 
 **Status:** Active
 **Type:** General
@@ -27,4 +27,4 @@ Build and utilize **Strongly Constrained, Specific Tools** (non-destructive conv
 The AI's operational arena becomes a set of safe, deterministic guardrails. The agent spends its intelligence on *orchestrating* the problem rather than trying to perfectly craft an unwieldy, potentially destructive mega-command.
 
 ## Related Patterns
-- **[G-005-tool-driven-correctness.md]**: Relies on specific objective tooling rather than raw AI reasoning.
+- **[G-042-tool-driven-correctness.md]**: Relies on specific objective tooling rather than raw AI reasoning.
