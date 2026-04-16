@@ -16,4 +16,4 @@ Note that even this "general" Pattern Language is intended to be very opinionate
 
 This repository is **pure pedagogy**. It contains no executable workflow scripts. 
 
-To manage, reorganize, and safely review this pattern language, you must use the **pattern-language-engine** skill. By executing the Engine's workflows against this directory, an AI can infallibly re-index and structurally map these patterns without destroying links or suffering stochastic token loss.
+To manage, reorganize, and safely review this pattern language, you must use the [**pattern-language-engine**](https://github.com/apinstein/skills/tree/main/skills/pattern-language-engine) skill. By executing the Engine's workflows against this directory, an AI can infallibly re-index and structurally map these patterns without destroying links or suffering stochastic token loss.
