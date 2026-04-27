@@ -25,6 +25,7 @@ The patterns in this language are explicitly designed to harness these generativ
 - [G-003: Architecture Diagrams (LikeC4 vs Mermaid)](G-003-architecture-diagrams.md): Use LikeC4 for structural and dependency mapping, and reserve Mermaid exclusively for dynamic flowcharts and state machines.
 - [G-004: Compiler-Driven Validation](G-004-compiler-driven-validation.md): Prefer statically typed languages to objectively and rapidly validate AI output, short-circuiting its tendency to confabulate.
 - [G-005: Contextual Tool Responses](G-005-contextual-tool-responses.md): Embed "next-step" instructions directly in the output of custom tools so the AI does not have to internally guess its mechanical follow-ups.
+- [G-006: Zero Defects and Signal-to-Noise](G-006-zero-defects.md): Mandate a zero-defect policy—treating warnings, dead code, and hacks as critical technical debt—to minimize "information theory" noise and maximize AI context saliency.
 
 ### 2. Context & Ecosystem Memory (Scale Block 020-039)
 - [G-020: Pageable Wisdom and Context Management](G-020-pageable-wisdom.md): Treat the pattern language as a modular memory bank of tacit knowledge that must be "lazy loaded" to preserve context windows.
