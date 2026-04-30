@@ -5,6 +5,8 @@
 **Domain:** Ecosystem
 
 ## Context
+[G-007: Verifiability as Prerequisite](G-007-verifiability-as-prerequisite.md) establishes that the quality of the available verifier determines the ceiling of any AI closed loop. Compiled, statically typed languages provide one of the strongest verifiers available: a compiler that is fast, deterministic, and produces highly specific error messages. This pattern instantiates G-007's verifiability gate for the specific domain of programming language and toolchain selection.
+
 When an AI generates code, config, or architectures, its output is inherently stochastic and prone to subtle hallucinations, typos, or structural drift. 
 
 ⋇ ⋇ ⋇
@@ -27,5 +29,6 @@ Statically typed languages (like Swift, Rust, or TypeScript) acts as mechanical 
 ⋇ ⋇ ⋇
 
 ## Related Smaller Patterns
+- **[G-007: Verifiability as Prerequisite](G-007-verifiability-as-prerequisite.md)**: The parent principle. This pattern is a specific instantiation of verifiability for compiled languages.
 - **[G-001: Strongly Constrained Tools](G-001-strongly-constrained-tools.md)**: Compliments this pattern by ensuring that the tools the AI uses to interact with the compiler are restricted and safe.
 - **[G-042: Tool-Driven Correctness](G-042-tool-driven-correctness.md)**: Directly utilizes the compiler as the objective verifier of correctness.

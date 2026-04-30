@@ -6,6 +6,8 @@
 **Importance:** ***
 
 ## Context
+[G-007: Verifiability as Prerequisite](G-007-verifiability-as-prerequisite.md) establishes that the quality of the available verifier determines the ceiling of any AI closed loop. This pattern generalizes that principle beyond compilers to *any* hard-harnessed tooling that can serve as an objective function—linters, schema validators, type checkers, test suites, or specialized domain validators.
+
 AI agents possess powerful heuristic reasoning, but they notoriously struggle with absolute syntactic, structural, and semantic correctness at scale.
 
 ## Problem
@@ -28,5 +30,6 @@ Offload absolute truth to **Hard Harnessed Tools** with explicit, strict boundar
 The AI is relieved of the burden of maintaining perfect structural correctness in its own memory. It instead acts as the creative orchestrator, with the rigid tooling acting as the structural integrity test. Quality remains high, preventing technical debt from minor hallucinations.
 
 ## Related Patterns
+- **[G-007: Verifiability as Prerequisite](G-007-verifiability-as-prerequisite.md)**: The parent principle. This pattern instantiates G-007 using hard-harnessed tooling as the objective function.
 - **[G-001-strongly-constrained-tools.md]**: Building custom verification scripts or linting commands acts as the foundation for this pattern.
 - **[G-040-adversarial-verification.md]**: Automated tooling serves as the first objective baseline of an adversarial verification loop.
