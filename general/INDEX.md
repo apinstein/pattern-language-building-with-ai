@@ -29,15 +29,19 @@ The patterns in this language are explicitly designed to harness these generativ
 - [G-007: Verifiability as Prerequisite](G-007-verifiability-as-prerequisite.md): Before designing any AI workflow, evaluate whether a strong, cheap objective function exists for the task—the quality of the verifier determines the ceiling of what any closed loop can achieve.
 - [G-008: Eval-Driven System Design](G-008-eval-driven-system-design.md): Treat the evaluation pipeline as a first-class architectural component—design data models and telemetry to produce structured evaluation pairs as a natural byproduct of system operation.
 - [G-009: Anti-Patterns — The Illusion of General Competence](G-009-anti-patterns.md): A formal catalog of domains and task types where AI systematically underperforms expectations, including tacit knowledge gaps, long-horizon drift, the fluency trap, and unverifiable domains.
+- [G-010: Functional Composition for AI-Friendly Code](G-010-functional-composition-for-ai-friendly-code.md): Prefer small typed transformations and idiomatic functional pipelines that expose data flow at the composition level, making code easier for AI to safely reason about and extend.
+- [G-011: Difficulty-Aware Task Escalation](G-011-difficulty-aware-task-escalation.md): Calibrate execution strategy to observable scope, uncertainty, risk, and verifier strength, escalating only bounded work that benefits from specialized or stronger-model analysis.
 
 ### 2. Context & Ecosystem Memory (Scale Block 020-039)
 - [G-020: Pageable Wisdom and Context Management](G-020-pageable-wisdom.md): Treat the pattern language as a modular memory bank of tacit knowledge that must be "lazy loaded" to preserve context windows.
 - [G-021: Saliency and Conflict Resolution](G-021-saliency-and-conflict-resolution.md): Use patterns to bind solutions to their specific contexts, preventing decision paralysis and improving the saliency of the correct approach amongst thousands of conflicting rules.
 - [G-022: Future-Proof Data Capture](G-022-future-proof-data-capture.md): Prioritize storing structured, high-fidelity raw data alongside parsed decisions so that future, more powerful AI models can re-process historical context without suffering from lossy summarization.
+- [G-023: Replayable Diagnostics and Algorithm Backtesting](G-023-replayable-diagnostics-and-algorithm-backtesting.md): Record versioned diagnostic inputs as replayable fixtures so agents can reproduce incidents and backtest new algorithms against real-world evidence without recollecting it live.
+- [G-024: Externalized Plans and Task Ledgers](G-024-externalized-plans-and-task-ledgers.md): Keep a concise file-backed plan and separately updated task ledger so active execution state remains token-efficient, auditable, and recoverable across compaction and handoff.
 
 ### 3. Rigid Quality Control (Scale Block 040-059)
 - [G-040: Adversarial Verification Loops](G-040-adversarial-verification.md): Structurally mandate inline standard checking and separate verification loops to counteract an AI's confirmation bias and "premature finish" syndrome.
 - [G-041: Inline Verification Checklists](G-041-inline-verification-checklists.md): Use concrete markdown checklists during adversarial verification loops to fundamentally short-circuit confirmation bias and force objective audits.
 - [G-042: Tool-Driven Correctness](G-042-tool-driven-correctness.md): Use hard-bounded verification tools to objectively prove correctness. Instantiates G-007's verifiability principle using arbitrary tooling as the objective function.
 - [G-043: Multi-Agent Council](G-043-multi-agent-council.md): Deploy multiple, distinctly prompted agent personas to evaluate or plan output simultaneously, avoiding "regression to the mean" by forcing specialized, orthogonal perspectives.
-
+- [G-044: Semantic Graph-Guided Change Analysis](G-044-semantic-graph-guided-change-analysis.md): Use LSP, compiler indexes, or AST graphs to map semantic impact before edits, then cover dynamic edges with targeted search and runtime verification.
