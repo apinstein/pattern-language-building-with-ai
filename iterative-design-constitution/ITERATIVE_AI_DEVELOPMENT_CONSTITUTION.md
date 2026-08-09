@@ -71,6 +71,18 @@ Long-running AI agents tend to drift toward local completion, minimal patches, a
 
 The process must therefore make current phase, state, constraints, unresolved questions, and exit criteria easy to recover from durable artifacts rather than conversational history.
 
+### 2.9 Organize work and opinionated VCS (git) structure
+AI needs cheap, isolated places to learn as well as a protected line of code that is intended to eventually merge into the base. Each significant change therefore has one durable integration branch and may create short-lived work branches whose intent is declared before work begins.
+
+This is implemented through three active branch roles and one retained archive namespace within `codex/<change>/`:
+
+* A single **integration** branch for the change
+* Any number of **spike** branches; a **spike** branch is intentionally a dead-end and not expected to be merged
+* Any number of **merge** branches; a **merge** branch may eventually be merged into the change's integration branch
+* An **archive** namespace for closed spike branches and rejected merge branches, retained until the change completes
+
+This lets the project run as many experiments as necessary without allowing exploratory code or a growing Git graph to dictate the shape of the converging system.
+
 ---
 
 ## 3. Unit of Work: The Change
@@ -83,24 +95,150 @@ Each significant change receives a durable workspace, for example:
 changes/
   <change-name>/
     STATE.md
+    VCS/
+      INDEX.md
+      integration.md
     1-discovery/
       STATE.md
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      VCS/
+        spike-http-semantics-01.md
     2-architecture/
       STATE.md
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      VCS/
+        spike-auth-contract-01.md
+        merge-retry-boundary-01.md
     3-hardening/
       STATE.md
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      VCS/
+        spike-release-upgrade-01.md
+        merge-backoff-limit-01.md
 ```
 
 The exact filenames are conventional rather than sacred. The semantic roles are required.
+
+### 3.1 Git branch contract
+
+When a change is initialized, create its durable integration branch from its chosen base branch:
+
+```text
+codex/<change>/integration
+```
+
+The integration branch is the isolated home for the whole change. It remains separate from its base until the change is ready for its final integration.
+
+A change is expected to create numerous work branches as it moves through its phases. Whenever an agent identifies a bounded implementation or an uncertainty that is cheaper to investigate in isolation, it may create the permitted merge or spike branch for the current phase. Every branch creation must follow the manifest and index contract below.
+
+Active work branches are named by their declared intent:
+
+```text
+codex/<change>/spike/<name>
+codex/<change>/merge/<name>
+```
+
+Closed work branches that remain useful for reference are retained in the archive namespace:
+
+```text
+codex/<change>/archive/spike/<name>
+codex/<change>/archive/merge/<name>
+```
+
+The branch name answers what kind of work it is. The manifest answers what is true about that particular branch.
+
+Branch names deliberately omit phase. Phase is lifecycle context that can advance or reopen; branch intent is immutable. The manifest records the phase, and its phase-local `VCS/` directory makes that context discoverable without encoding it twice in the Git ref.
+
+#### Branch creation
+
+Branch creation is a manifest transaction. When initializing a change, create `VCS/integration.md` and `VCS/INDEX.md` in the integration branch's first commit. Whenever an agent creates a work branch, it must first create that branch's manifest—recording its intended base branch and base commit—and update `VCS/INDEX.md` on the integration branch, then create the work branch from that declared base. No implementation work may begin on a branch without its manifest and an index entry.
+
+A work branch may use the integration branch as its base, or, when a narrower question must be isolated, another active work branch. The manifest makes that recursive dependency explicit rather than inferring it from naming or conversation.
+
+#### Worktrees
+
+Branches and their manifests define repository state; worktrees are optional local execution isolation. An agent may create a dedicated worktree when it needs to work on an active branch alongside another checkout, including for parallel work. Creating or removing a worktree neither creates nor closes a branch and does not change the manifest or index.
+
+#### VCS manifests
+
+The integration branch has `VCS/integration.md`. Each work branch has one concise, flat manifest in the `VCS/` directory of the phase in which it was created, named `<intent>-<name>.md`. For example, `codex/payment-retry/spike/http-semantics-01` has `1-discovery/VCS/spike-http-semantics-01.md`. A name must be unique within its change; use a suffix such as `-02` for a distinct follow-up.
+
+Each manifest records only the branch contract and its outcome, not a duplicate plan or learning history:
+
+```markdown
+Branch: codex/payment-retry/spike/http-semantics-01
+Base branch: codex/payment-retry/integration
+Base commit: <full commit SHA>
+Phase: 1 — Discovery
+Intent: spike
+Expected disposition: reference-only
+Status: active
+Purpose: establish retry behavior for HTTP 429 and 503
+Exit evidence: reproducible observations and a recorded conclusion
+Closure: pending
+```
+
+The integration manifest records its base branch and ref. A work-branch manifest records the actual branch and commit from which it begins; its base is often integration, but may be another active work branch. Together these records make the topology discoverable without requiring a separate hand-maintained graph.
+
+#### VCS index
+
+`VCS/INDEX.md` is the live shortcut to the change's branch state. It links to the integration manifest and every work-branch manifest, grouped by phase and status so an agent can quickly identify active, merged, archived, and rejected branches while re-establishing context.
+
+Update the index as part of the same branch-creation or branch-closure transaction whenever a branch is created, merged, or archived. The manifests are authoritative; the index is a rebuildable materialized view. If its state is missing, stale, or inconsistent, rebuild it by reading `VCS/integration.md` and all `*/VCS/*.md` files, then regenerate the grouped links and statuses before continuing work.
+
+#### Phase and branch intent
+
+Phase determines the kind of progress being pursued. Branch intent determines whether the branch's code may enter integration. They are separate dimensions:
+
+| Phase | Allowed work-branch intents | Default behavior |
+| --- | --- | --- |
+| 1 — Discovery | `spike` | All work-branch code is reference-only. The integration line receives durable phase artifacts, especially learnings and decisions, not exploratory implementations. |
+| 2 — Architecture | `spike`, `merge` | Use spikes to resolve local uncertainty and merge branches to advance the selected architecture. |
+| 3 — Hardening | `spike`, `merge` | Merge branches are normal. Spikes are permitted only for narrow empirical questions; a structural flaw explicitly reopens Phase 2. |
+
+#### Branch intents and closure
+
+Every work branch has exactly one immutable intent:
+
+| Intent | Purpose | Allowed closure(s) |
+| --- | --- | --- |
+| `spike` | Learn, probe, compare, or falsify. Its code is reference-only. | Archive after its salient learnings and decisions are recorded in the integration branch's phase artifacts. |
+| `merge` | Implement a bounded slice intended for the integration branch. | Merge after it has been successfully merged into its base, or archive as "explicitly unmerged" with the reason it was not adopted. |
+
+`integration` is a durable branch role, not a work-branch intent. It accepts only deliberately promoted merge branches and is finally merged into its base when the change completes.
+
+Branch intent does not change. A spike that uncovers a sound implementation still closes as a spike; a new merge work branch begins from integration and uses the spike as evidence. This preserves a clean boundary between experimental code and code intended to converge.
+
+The work-branch manifest begins with `Status: active`. Its terminal status is `merged` when a merge branch enters integration, `archived` when a spike is retained for reference, or `rejected` when a merge branch is explicitly abandoned. A closure record includes the resulting integration commit or archive branch and pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A merge branch may become `rejected` only after its abandonment decision and reason are recorded in both its manifest and the phase's `DECISIONS.md`.
+
+#### Archive closure
+
+Archiving is a rename into the change's archive namespace, not deletion or an untracked dead end. To archive a work branch:
+
+1. ensure its salient findings and consequential decisions are recorded in the integration branch's phase `LEARNINGS.md` and `DECISIONS.md` files;
+2. rename its ref to `codex/<change>/archive/<intent>/<name>`;
+3. update its manifest and `VCS/INDEX.md` with `Status: archived` for a spike or `Status: rejected` for an explicitly abandoned merge branch, the archive branch name, and pointers to those phase artifacts;
+4. verify that the integration artifacts, closure record, and archive branch exist; when a shared remote is used, push and verify all three there. Push and verify the archive branch before deleting the active remote branch;
+
+The archive branch preserves the exact experimental code and change set for later forensic reference. The integration workspace preserves the durable conclusion. No code from an archived spike is merged. If the canonical phase artifacts or archive branch cannot be verified, leave the archive branch and any dedicated worktree in place.
+
+#### Merge closure
+
+If/when a merge branch is successfully merged into its base, update its manifest and `VCS/INDEX.md` to `Status: merged` with the resulting merge commit, and verify the result.
+
+If/when a merge branch is explicitly abandoned rather than adopted, do not merge it. Record the abandonment decision and reason, then close it through the archive procedure with `Status: rejected`.
+
+#### Change cleanup
+
+After the integration branch is merged into its base and the change is complete, verify that the base contains the canonical phase artifacts and that `VCS/INDEX.md` has no active work branches. Then remove any remaining dedicated worktrees for the change and delete every local and remote `codex/<change>/...` ref, including the integration and archive branches. The durable record is now the merged integration history and its artifacts in the base; raw exploratory code is intentionally eligible for cleanup.
+
+By default, a change has one active path: the integration branch and, if nested work is necessary, a single chain of work branches. Parallel active leaves require an explicit decision, and integration may not merge into its base while any work branches remain unresolved.
 
 ---
 
@@ -537,13 +675,14 @@ Every agent working on a governed change should follow this startup sequence:
 3. Read the change-level `STATE.md`.
 4. Follow its pointer to the active phase and read that phase's `STATE.md`.
 5. Confirm the current state-machine node and available transitions.
-6. Read the current phase `PLAN.md`.
-7. Read relevant learnings and decisions.
-8. Inspect the relevant code.
-9. Confirm that the intended action is appropriate for both the current phase and current phase state.
-10. Work.
-11. Update state files whenever meaningful operational state changes.
-12. Update durable learnings and decisions whenever the state of knowledge changes.
+6. Read `VCS/INDEX.md`, `VCS/integration.md`, and the manifest for the current branch, if any.
+7. Read the current phase `PLAN.md`.
+8. Read relevant learnings and decisions.
+9. Inspect the relevant code.
+10. Confirm that the intended action is appropriate for the current phase, phase state, and branch intent.
+11. Work.
+12. Update state files whenever meaningful operational state changes.
+13. Update durable learnings and decisions whenever the state of knowledge changes.
 
 ### Agents MUST NOT
 
@@ -552,6 +691,10 @@ Every agent working on a governed change should follow this startup sequence:
 - treat existing code as evidence that the current design is correct;
 - patch around a fundamental architectural failure merely to make a task pass;
 - build large amounts of production scaffolding around intentionally disposable experiments;
+- create a work branch without first recording its intent and expected disposition in a VCS manifest;
+- create, merge, or archive a branch without updating `VCS/INDEX.md` as part of its creation or closure transaction;
+- create a merge branch during Phase 1;
+- merge a spike into integration or silently change a work branch's declared intent;
 - erase failed experiments whose lessons remain valuable;
 - allow conversational context to become the sole repository of important project knowledge;
 - declare uncertainty resolved without evidence.
@@ -638,33 +781,7 @@ Promotion from temporary to evergreen should be deliberate.
 
 ---
 
-## 13. Branch and Commit Signaling
-
-Where useful, encode phase in branch naming so the development environment continually reinforces the mode of work.
-
-For example:
-
-```text
-p1/<change>/...
-p2/<change>/...
-p3/<change>/...
-```
-
-or:
-
-```text
-discovery/<change>/...
-architecture/<change>/...
-hardening/<change>/...
-```
-
-Commit messages may similarly distinguish experiments, learnings, architectural decisions, and production changes.
-
-The purpose is not bureaucracy. It is to make accidental phase confusion harder.
-
----
-
-## 14. Rewind Rule
+## 13. Rewind Rule
 
 When evidence contradicts the assumptions of the current phase, move backward explicitly.
 
@@ -679,7 +796,7 @@ Backward movement is not failure. It is the mechanism by which evidence corrects
 
 ---
 
-## 15. Definition of Progress
+## 14. Definition of Progress
 
 Progress depends on phase.
 
@@ -696,7 +813,7 @@ Merged code is therefore neither necessary nor sufficient evidence of progress.
 
 ---
 
-## 16. Final Principle
+## 15. Final Principle
 
 AI dramatically lowers the cost of producing implementations. It does not eliminate the need to discover the correct problem model, abstractions, boundaries, interactions, or product behavior.
 
