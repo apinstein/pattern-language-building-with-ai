@@ -140,6 +140,10 @@ codex/<change>/integration
 
 The integration branch is the isolated home for the whole change. It remains separate from its base until the change is ready for its final integration.
 
+#### Base synchronization
+
+If the change needs updates from its base branch, merge the current base branch into the integration branch and resolve and validate the result there. Do not rebase or otherwise rewrite the integration branch as the ordinary synchronization mechanism. A more sophisticated compatibility, dependency, or future-change integration strategy requires an explicit, recorded override in `DECISIONS.md`.
+
 A change is expected to create numerous work branches as it moves through its phases. Whenever an agent identifies a bounded implementation or an uncertainty that is cheaper to investigate in isolation, it may create the permitted merge or spike branch for the current phase. Every branch creation must follow the manifest and index contract below.
 
 Active work branches are named by their declared intent:
@@ -160,11 +164,15 @@ The branch name answers what kind of work it is. The manifest answers what is tr
 
 Branch names deliberately omit phase. Phase is lifecycle context that can advance or reopen; branch intent is immutable. The manifest records the phase, and its phase-local `VCS/` directory makes that context discoverable without encoding it twice in the Git ref.
 
+Work branches are **phase-bound**. A phase transition never carries an active branch into the next phase: before the change-level state enters the incoming phase, every work branch created in the outgoing phase must receive its final disposition. A spike is archived after its findings are recorded; a merge branch is merged toward integration or rejected and archived. If follow-on work is appropriate in the incoming phase, create a new branch with the incoming phase's permitted intent, using the resolved prior branch only as evidence. In particular, a Phase 1 spike cannot become Phase 2 work, and a Phase 2 merge branch cannot become Phase 3 work.
+
 #### Branch creation
 
-Branch creation is a manifest transaction. When initializing a change, create `VCS/integration.md` and `VCS/INDEX.md` in the integration branch's first commit. Whenever an agent creates a work branch, it must first create that branch's manifest—recording its intended base branch and base commit—and update `VCS/INDEX.md` on the integration branch, then create the work branch from that declared base. No implementation work may begin on a branch without its manifest and an index entry.
+Branch creation is a manifest transaction. When initializing a change, create `VCS/integration.md` and `VCS/INDEX.md` in the integration branch's first commit. Whenever an agent creates a work branch, it must first create that branch's manifest—recording its intended base branch and base commit—and update `VCS/INDEX.md` in a direct control-plane commit on the integration branch, then create the work branch from that declared base commit. The integration branch's version of these control-plane artifacts is authoritative even when an active work branch does not contain the latest control-plane commit. No implementation work may begin on a branch without its manifest and an index entry.
 
 Here, *transaction* means one logical, resumable operation; it does not require Git to make all metadata and ref mutations atomically. If creation or closure is interrupted, or concurrent metadata updates conflict, reconcile the manifests and rebuild `VCS/INDEX.md` before implementation continues.
+
+Agents update canonical manifests, index entries, state files, and phase artifacts through the integration branch (using a dedicated integration worktree or a brief checkout when necessary). They do not merge a spike merely to transfer control-plane metadata.
 
 A `spike` branch may use the integration branch or another active work branch as its base. A `merge` branch may use the integration branch or another active `merge` branch as its base. A `merge` branch must never use a `spike` as its base, so code intended to converge cannot terminate on a reference-only branch. The manifest makes any permitted recursive dependency explicit rather than inferring it from naming or conversation.
 
@@ -218,11 +226,13 @@ Every work branch has exactly one immutable intent:
 | `spike` | Learn, probe, compare, or falsify. Its code is reference-only. | Archive after its salient learnings and decisions are recorded in the integration branch's phase artifacts. |
 | `merge` | Implement a bounded slice intended to reach integration directly or through a stacked merge. | Merge after it has been successfully merged into its declared base, or archive as "explicitly unmerged" with the reason it was not adopted. |
 
-`integration` is a durable branch role, not a work-branch intent. It accepts only deliberately promoted merge branches and is finally merged into its base when the change completes.
+`integration` is a durable branch role, not a work-branch intent. It accepts new change implementation code only through deliberately promoted merge branches; it may also receive its declared base branch through the Base synchronization policy and contain direct control-plane commits for constitution metadata, manifests, indexes, state, learnings, decisions, and other documentation artifacts. It is finally merged into its base when the change completes.
 
 Branch intent does not change. A spike that uncovers a sound implementation still closes as a spike; a new merge work branch begins from integration or an active merge branch and uses the spike as evidence. This preserves a clean boundary between experimental code and code intended to converge.
 
 The work-branch manifest begins with `Status: active`. Its terminal status is `merged` when a merge branch has successfully merged into its declared base, `archived` when a spike is retained for reference, or `rejected` when a merge branch is explicitly abandoned. A closure record includes the resulting base commit or archive branch and pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A merge branch may become `rejected` only after its abandonment decision and reason are recorded in both its manifest and the phase's `DECISIONS.md`. `VCS/INDEX.md` needs to record only this immediate disposition; collapsing a completed merge stack into integration is not a closure requirement.
+
+Merge-stack closure is topologically ordered. An active merge branch may not be merged or rejected while it has active merge descendants. Each descendant must first merge into its declared base or be rejected and archived. If a parent merge branch is rejected, reject and archive any remaining merge descendants from the leaves upward; no descendant may bypass its declared base to reach integration.
 
 #### Archive closure
 
@@ -548,15 +558,16 @@ When a phase becomes inactive, its final state remains as a historical snapshot 
 
 #### State synchronization
 
-The change-level and phase-level state files must agree.
+The change-level and phase-level state files must agree. A phase transition is a control-plane transaction, not a sequence of independently visible state edits.
 
-When a phase transition occurs:
+Once the phase gate is accepted, complete the following Git hygiene before switching the change-level state:
 
-1. update the outgoing phase `STATE.md`;
-2. record durable conclusions in `LEARNINGS.md` and `DECISIONS.md`;
-3. update the change-level `STATE.md`;
-4. initialize or reactivate the incoming phase `STATE.md`;
-5. ensure the recorded state corresponds to the appropriate Mermaid state machine.
+1. give every active work branch in the outgoing phase its required final disposition and update its manifest and `VCS/INDEX.md`;
+2. record durable conclusions, gate evidence, and approval in `LEARNINGS.md` and `DECISIONS.md`;
+3. prepare or reactivate the incoming phase `STATE.md` with `Status: Pending activation` and its initial state-machine node;
+4. make one direct control-plane commit on the integration branch that marks the outgoing phase state inactive at its terminal node, marks the incoming phase state active, and updates the change-level `STATE.md` with the new phase, phase state, and active-phase pointer.
+
+Until the transition commit exists, the prior committed change-level state remains authoritative. If preparation is interrupted, reconcile the recorded branch dispositions and gate evidence, then retry the transition transaction; do not point the change-level state at an inactive or uninitialized phase.
 
 The repository may additionally maintain a project-level state file summarizing all active changes and their phases.
 
@@ -564,7 +575,7 @@ The repository may additionally maintain a project-level state file summarizing 
 
 ### 6.2 `PLAN.md` — Intent and evaluation
 
-A plan should state:
+A plan must state:
 
 - the problem being addressed;
 - the current objective;
@@ -576,6 +587,8 @@ A plan should state:
 - explicit non-goals appropriate to the current phase.
 
 Plans should answer not merely **what will we build?**, but **what are we trying to learn or establish?**
+
+Every phase plan must contain explicit, observable phase exit criteria. A work branch's `Purpose` and `Exit evidence` are its branch-specific exit criteria and must be consistent with the current phase plan. Before accepting a phase gate, merging a merge branch, or declaring delivery complete, verify the relevant criteria and have the result approved by a human and/or a clean-room AI adjudicator that did not materially perform the evaluated work. Record the approval, its evidence, and the adjudicator in `DECISIONS.md`; include the relevant pointer in the branch closure record when applicable.
 
 ---
 
