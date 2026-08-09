@@ -8,11 +8,11 @@ This constitution overrides the default SDLC behaviors of the harness in favor o
 
 This constitution is heavily influenced by [A Pattern Language for Building Software with AI](https://github.com/apinstein/pattern-language-building-with-ai).
 
-Based on the empirical observation that it often takes several major iterations to arrive at a good design for a particular problem, this constitution optimizes for this approach. Any requested changes to a software project with navigate a three-phase process:
+Based on the empirical observation that it often takes several major iterations to arrive at a good design for a particular problem, this constitution optimizes for this approach. Each governed change follows a three-phase process:
 
 1. Learning & Exploration
 2. System Design & Architecture
-3. Optimization
+3. Hardening, Optimization & Delivery
 
 AI makes implementation cheap enough that early code should often be treated as an experiment rather than an asset. We therefore do not assume that the first plausible design should become the production design.
 
@@ -71,14 +71,14 @@ Long-running AI agents tend to drift toward local completion, minimal patches, a
 
 The process must therefore make current phase, state, constraints, unresolved questions, and exit criteria easy to recover from durable artifacts rather than conversational history.
 
-### 2.9 Organize work and opinionated VCS (git) structure
+### 2.9 Organize work via opinionated VCS (git) structure
 AI needs cheap, isolated places to learn as well as a protected line of code that is intended to eventually merge into the base. Each significant change therefore has one durable integration branch and may create short-lived work branches whose intent is declared before work begins.
 
 This is implemented through three active branch roles and one retained archive namespace within `codex/<change>/`:
 
 * A single **integration** branch for the change
 * Any number of **spike** branches; a **spike** branch is intentionally a dead-end and not expected to be merged
-* Any number of **merge** branches; a **merge** branch may eventually be merged into the change's integration branch
+* Any number of **merge** branches; a **merge** branch may eventually reach the change's integration branch, directly or through a stacked merge
 * An **archive** namespace for closed spike branches and rejected merge branches, retained until the change completes
 
 This lets the project run as many experiments as necessary without allowing exploratory code or a growing Git graph to dictate the shape of the converging system.
@@ -88,6 +88,11 @@ This lets the project run as many experiments as necessary without allowing expl
 ## 3. Unit of Work: The Change
 
 A **change** is any feature, subsystem, architectural modification, or sufficiently complex problem that deserves an independent learning cycle.
+
+A change is not defined by the current working branch. Work requested within an active, named change follows that change's current state and does not initialize another change. A request outside an active change must first be qualified:
+
+- **Routine local work** may follow the project's ordinary workflow without creating a governed change.
+- **A significant, independent change** initializes this constitution's workspace, integration manifest, and branch structure before implementation begins.
 
 Each significant change receives a durable workspace, for example:
 
@@ -113,7 +118,7 @@ changes/
       VCS/
         spike-auth-contract-01.md
         merge-retry-boundary-01.md
-    3-hardening/
+    3-delivery/
       STATE.md
       PLAN.md
       LEARNINGS.md
@@ -159,7 +164,9 @@ Branch names deliberately omit phase. Phase is lifecycle context that can advanc
 
 Branch creation is a manifest transaction. When initializing a change, create `VCS/integration.md` and `VCS/INDEX.md` in the integration branch's first commit. Whenever an agent creates a work branch, it must first create that branch's manifest—recording its intended base branch and base commit—and update `VCS/INDEX.md` on the integration branch, then create the work branch from that declared base. No implementation work may begin on a branch without its manifest and an index entry.
 
-A work branch may use the integration branch as its base, or, when a narrower question must be isolated, another active work branch. The manifest makes that recursive dependency explicit rather than inferring it from naming or conversation.
+Here, *transaction* means one logical, resumable operation; it does not require Git to make all metadata and ref mutations atomically. If creation or closure is interrupted, or concurrent metadata updates conflict, reconcile the manifests and rebuild `VCS/INDEX.md` before implementation continues.
+
+A `spike` branch may use the integration branch or another active work branch as its base. A `merge` branch may use the integration branch or another active `merge` branch as its base. A `merge` branch must never use a `spike` as its base, so code intended to converge cannot terminate on a reference-only branch. The manifest makes any permitted recursive dependency explicit rather than inferring it from naming or conversation.
 
 #### Worktrees
 
@@ -175,7 +182,7 @@ Each manifest records only the branch contract and its outcome, not a duplicate 
 Branch: codex/payment-retry/spike/http-semantics-01
 Base branch: codex/payment-retry/integration
 Base commit: <full commit SHA>
-Phase: 1 — Discovery
+Phase: 1 — Learning & Exploration
 Intent: spike
 Expected disposition: reference-only
 Status: active
@@ -184,7 +191,7 @@ Exit evidence: reproducible observations and a recorded conclusion
 Closure: pending
 ```
 
-The integration manifest records its base branch and ref. A work-branch manifest records the actual branch and commit from which it begins; its base is often integration, but may be another active work branch. Together these records make the topology discoverable without requiring a separate hand-maintained graph.
+The integration manifest records its base branch and ref. A work-branch manifest records the actual branch and commit from which it begins; a spike may base on another active work branch, while a merge branch may base only on integration or another active merge branch. Together these records make the topology discoverable without requiring a separate hand-maintained graph.
 
 #### VCS index
 
@@ -198,9 +205,9 @@ Phase determines the kind of progress being pursued. Branch intent determines wh
 
 | Phase | Allowed work-branch intents | Default behavior |
 | --- | --- | --- |
-| 1 — Discovery | `spike` | All work-branch code is reference-only. The integration line receives durable phase artifacts, especially learnings and decisions, not exploratory implementations. |
-| 2 — Architecture | `spike`, `merge` | Use spikes to resolve local uncertainty and merge branches to advance the selected architecture. |
-| 3 — Hardening | `spike`, `merge` | Merge branches are normal. Spikes are permitted only for narrow empirical questions; a structural flaw explicitly reopens Phase 2. |
+| 1 — Learning & Exploration | `spike` | All work-branch code is reference-only. The integration line receives durable phase artifacts, especially learnings and decisions, not exploratory implementations. |
+| 2 — System Design & Architecture | `spike`, `merge` | Use spikes to resolve local uncertainty and merge branches to advance the selected architecture. |
+| 3 — Hardening, Optimization & Delivery | `spike`, `merge` | Merge branches are normal. Spikes are permitted only for narrow empirical questions. A suspected structural flaw requires a recorded classification decision; a decision to reopen uses a fresh Phase 2 merge branch. |
 
 #### Branch intents and closure
 
@@ -209,13 +216,13 @@ Every work branch has exactly one immutable intent:
 | Intent | Purpose | Allowed closure(s) |
 | --- | --- | --- |
 | `spike` | Learn, probe, compare, or falsify. Its code is reference-only. | Archive after its salient learnings and decisions are recorded in the integration branch's phase artifacts. |
-| `merge` | Implement a bounded slice intended for the integration branch. | Merge after it has been successfully merged into its base, or archive as "explicitly unmerged" with the reason it was not adopted. |
+| `merge` | Implement a bounded slice intended to reach integration directly or through a stacked merge. | Merge after it has been successfully merged into its declared base, or archive as "explicitly unmerged" with the reason it was not adopted. |
 
 `integration` is a durable branch role, not a work-branch intent. It accepts only deliberately promoted merge branches and is finally merged into its base when the change completes.
 
-Branch intent does not change. A spike that uncovers a sound implementation still closes as a spike; a new merge work branch begins from integration and uses the spike as evidence. This preserves a clean boundary between experimental code and code intended to converge.
+Branch intent does not change. A spike that uncovers a sound implementation still closes as a spike; a new merge work branch begins from integration or an active merge branch and uses the spike as evidence. This preserves a clean boundary between experimental code and code intended to converge.
 
-The work-branch manifest begins with `Status: active`. Its terminal status is `merged` when a merge branch enters integration, `archived` when a spike is retained for reference, or `rejected` when a merge branch is explicitly abandoned. A closure record includes the resulting integration commit or archive branch and pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A merge branch may become `rejected` only after its abandonment decision and reason are recorded in both its manifest and the phase's `DECISIONS.md`.
+The work-branch manifest begins with `Status: active`. Its terminal status is `merged` when a merge branch has successfully merged into its declared base, `archived` when a spike is retained for reference, or `rejected` when a merge branch is explicitly abandoned. A closure record includes the resulting base commit or archive branch and pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A merge branch may become `rejected` only after its abandonment decision and reason are recorded in both its manifest and the phase's `DECISIONS.md`. `VCS/INDEX.md` needs to record only this immediate disposition; collapsing a completed merge stack into integration is not a closure requirement.
 
 #### Archive closure
 
@@ -230,7 +237,7 @@ The archive branch preserves the exact experimental code and change set for late
 
 #### Merge closure
 
-If/when a merge branch is successfully merged into its base, update its manifest and `VCS/INDEX.md` to `Status: merged` with the resulting merge commit, and verify the result.
+If/when a merge branch is successfully merged into its declared base, update its manifest and `VCS/INDEX.md` to `Status: merged` with the resulting base commit, and verify the result.
 
 If/when a merge branch is explicitly abandoned rather than adopted, do not merge it. Record the abandonment decision and reason, then close it through the archive procedure with `Status: rejected`.
 
@@ -244,9 +251,9 @@ By default, a change has one active path: the integration branch and, if nested 
 
 ## 4. Phase Model
 
-The process has three major phases. A phase may contain **multiple iterations**. Phase transitions are earned by evidence, not iteration count.
+The process has three major phases. A phase may contain **multiple iterations**. Phase transitions are earned by evidence, not iteration count. The human-facing phase titles are used throughout this constitution; the operational labels are **Discovery**, **Architecture**, and **Delivery**.
 
-### Phase 1 — Discovery & Proof of Concept
+### Phase 1 — Learning & Exploration
 
 **Objective:** understand the problem and eliminate important unknowns cheaply.
 
@@ -275,7 +282,7 @@ If the team still cannot explain the important constraints and failure modes of 
 
 ---
 
-### Phase 2 — Architecture & Convergence
+### Phase 2 — System Design & Architecture
 
 **Objective:** discover a system structure that survives contact with implementation.
 
@@ -336,9 +343,9 @@ Typical work includes:
 - user-facing polish;
 - production documentation.
 
-Phase 3 should optimize the system rather than continually rediscover its basic shape.
+This delivery phase should optimize the system rather than continually rediscover its basic shape.
 
-If hardening repeatedly exposes fundamental architectural flaws, explicitly **reopen Phase 2** rather than creating a patch spiral.
+If delivery work suggests a fundamental architectural flaw, preserve and classify the evidence before continuing structural work. If the recorded decision is to reopen Phase 2, close or archive the affected Phase 3 work branch and begin a fresh Phase 2 merge branch; do not repair the structural flaw on the Phase 3 branch.
 
 ---
 
@@ -359,10 +366,10 @@ stateDiagram-v2
     Discovery --> Architecture: Discovery gate satisfied
     Architecture --> Architecture: Continue convergence
     Architecture --> Discovery: Fundamental unknown discovered
-    Architecture --> Hardening: Architecture Lock
-    Hardening --> Hardening: Continue hardening
-    Hardening --> Architecture: Fundamental design flaw discovered
-    Hardening --> Complete: Acceptance criteria satisfied
+    Architecture --> Delivery: Architecture Lock
+    Delivery --> Delivery: Continue delivery work
+    Delivery --> Architecture: Reopen decision recorded
+    Delivery --> Complete: Acceptance criteria satisfied
     Complete --> [*]
 ```
 
@@ -408,7 +415,7 @@ stateDiagram-v2
 
 A functioning implementation is not itself evidence of convergence. Architecture remains in this loop until implementation increasingly validates rather than overturns the system model.
 
-### 5.4 Hardening state machine
+### 5.4 Delivery state machine
 
 ```mermaid
 stateDiagram-v2
@@ -417,7 +424,9 @@ stateDiagram-v2
     ImplementOrRefine --> Validate
     Validate --> FailureAnalysis: Requirement not satisfied
     FailureAnalysis --> ImplementOrRefine: Local robustness issue
-    FailureAnalysis --> ReopenArchitecture: Structural design flaw
+    FailureAnalysis --> EvaluateArchitectureReopen: Structural concern
+    EvaluateArchitectureReopen --> ImplementOrRefine: Classified as local
+    EvaluateArchitectureReopen --> ReopenArchitecture: Reopen decision recorded
     ReopenArchitecture --> [*]
     Validate --> AcceptanceAssessment: Requirement satisfied
     AcceptanceAssessment --> SelectRequirement: More requirements remain
@@ -425,7 +434,7 @@ stateDiagram-v2
     Complete --> [*]
 ```
 
-Hardening failures must be classified before being fixed. Local failures remain in Hardening; structural failures explicitly reopen Architecture rather than being hidden beneath patches.
+Delivery failures must be classified before being fixed. A suspected structural flaw enters an explicit reopen evaluation. Local failures remain in Delivery; when the recorded decision is to reopen Architecture, close or archive the affected Delivery work branch and create a fresh Phase 2 merge branch rather than hiding a structural repair beneath a Phase 3 patch.
 
 ### 5.5 State-machine discipline
 
@@ -450,7 +459,7 @@ The change-level state file is the first change-specific document an agent shoul
 ```markdown
 # Change State
 
-Phase: 2 — Architecture
+Phase: 2 — System Design & Architecture
 Phase State: EvaluateArchitecture
 Architecture Lock: No
 Status: Active
@@ -668,6 +677,16 @@ If the evidence does not support transition, remain in the phase.
 
 ## 9. Agent Operating Rules
 
+### 9.1 Adoption and precedence
+
+An organization adopts this constitution by directing its agents to follow it for a named scope of changes. The adoption instruction must identify this document and the governed scope. Within that scope, this constitution governs SDLC and VCS behavior unless a more-local project rule explicitly overrides it.
+
+For example, place this sentence in the project's agent rules or bootstrap file:
+
+> Adopt `iterative-design-constitution/ITERATIVE_AI_DEVELOPMENT_CONSTITUTION.md` for each named change in this project. Treat it as the governing SDLC and VCS process unless a more-local project rule explicitly overrides it.
+
+### 9.2 Startup sequence
+
 Every agent working on a governed change should follow this startup sequence:
 
 1. Read this constitution.
@@ -719,19 +738,19 @@ A sequence of hacks that repeatedly exposes new failures is evidence that the pr
 
 Testing serves different purposes at different phases.
 
-### Phase 1
+### Phase 1 — Learning & Exploration
 Test to **learn**.
 
 Use narrow experiments, assertions, probes, fixtures, and temporary harnesses. Preserve tests only when they encode durable knowledge.
 
-### Phase 2
+### Phase 2 — System Design & Architecture
 Test to **validate architecture**.
 
 Prioritize representative end-to-end flows, boundaries, contracts, integration seams, and architectural assumptions.
 
 Avoid exhaustive matrices until the design stabilizes.
 
-### Phase 3
+### Phase 3 — Hardening, Optimization & Delivery
 Test to **establish reliability**.
 
 Build the comprehensive test matrix: unit, integration, end-to-end, regression, performance, failure modes, security, compatibility, and other production requirements as appropriate.
@@ -783,13 +802,13 @@ Promotion from temporary to evergreen should be deliberate.
 
 ## 13. Rewind Rule
 
-When evidence contradicts the assumptions of the current phase, move backward explicitly.
+When evidence contradicts the assumptions of the current phase, preserve and evaluate the evidence, then record the decision to move backward explicitly.
 
-Do not conceal a rewind by continuing to patch forward.
+Do not conceal a rewind by continuing to patch forward. When reopening Phase 2 from Phase 3, close or archive the affected Phase 3 work branch and begin a fresh Phase 2 merge branch rather than making the structural repair on the Phase 3 branch.
 
 Examples:
 
-- A Phase 3 optimization reveals an invalid component boundary → reopen Phase 2.
+- A Phase 3 optimization suggests an invalid component boundary → preserve the evidence, make a recorded reopen decision, then reopen Phase 2 with a fresh merge branch.
 - Phase 2 reveals that a critical external system behaves differently than assumed → reopen the relevant Phase 1 investigation.
 
 Backward movement is not failure. It is the mechanism by which evidence corrects the design.
@@ -806,7 +825,7 @@ Progress = important uncertainty eliminated per unit effort.
 ### In Architecture
 Progress = convergence toward a design that survives implementation evidence.
 
-### In Hardening
+### In Delivery
 Progress = increased confidence that the converged system satisfies its production requirements.
 
 Merged code is therefore neither necessary nor sufficient evidence of progress.
