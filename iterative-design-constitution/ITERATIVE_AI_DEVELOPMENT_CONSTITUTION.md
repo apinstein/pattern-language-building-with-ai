@@ -83,6 +83,23 @@ This is implemented through three active branch roles and one retained archive n
 
 This lets the project run as many experiments as necessary without allowing exploratory code or a growing Git graph to dictate the shape of the converging system.
 
+### 2.10 Spikes expand around an uncertainty
+
+A spike bounds an uncertainty, not an immutable task list. A human or agent may
+expand its scope when new evidence reveals a directly connected question that
+can be answered more cheaply in the same experiment. Update the phase plan and
+branch manifest when the question, evidence, or exit criteria materially
+change. Create a separate spike only when the uncertainty is independent or the
+branch intent changes.
+
+### 2.11 Humans control spike disposition
+
+Agents may collect evidence, commit checkpoints, and recommend a disposition.
+They must not infer permission to archive a spike from a passing test, accepted
+UAT, a completed checklist, or a proposed phase transition. A human explicitly
+decides whether a reviewed spike continues, changes scope, is archived, or
+supplies evidence for a phase gate.
+
 ---
 
 ## 3. Unit of Work: The Change
@@ -164,7 +181,15 @@ The branch name answers what kind of work it is. The manifest answers what is tr
 
 Branch names deliberately omit phase. Phase is lifecycle context that can advance or reopen; branch intent is immutable. The manifest records the phase, and its phase-local `VCS/` directory makes that context discoverable without encoding it twice in the Git ref.
 
-Work branches are **phase-bound**. A phase transition never carries an active branch into the next phase: before the change-level state enters the incoming phase, every work branch created in the outgoing phase must receive its final disposition. A spike is archived after its findings are recorded; a merge branch is merged toward integration or rejected and archived. If follow-on work is appropriate in the incoming phase, create a new branch with the incoming phase's permitted intent, using the resolved prior branch only as evidence. In particular, a Phase 1 spike cannot become Phase 2 work, and a Phase 2 merge branch cannot become Phase 3 work.
+Work branches are **phase-bound**. A phase transition never carries an active
+branch into the next phase: before the change-level state enters the incoming
+phase, every work branch created in the outgoing phase must receive its final
+disposition. A human-authorized spike is archived after its findings are
+recorded; a merge branch is merged toward integration or rejected and archived.
+If follow-on work is appropriate in the incoming phase, create a new branch
+with the incoming phase's permitted intent, using the resolved prior branch
+only as evidence. In particular, a Phase 1 spike cannot become Phase 2 work,
+and a Phase 2 merge branch cannot become Phase 3 work.
 
 #### Branch creation
 
@@ -197,6 +222,9 @@ Status: active
 Purpose: establish retry behavior for HTTP 429 and 503
 Exit evidence: reproducible observations and a recorded conclusion
 Closure: pending
+Human UAT: pending
+Human branch disposition: pending
+Human phase-gate approval: pending
 ```
 
 The integration manifest records its base branch and ref. A work-branch manifest records the actual branch and commit from which it begins; a spike may base on another active work branch, while a merge branch may base only on integration or another active merge branch. Together these records make the topology discoverable without requiring a separate hand-maintained graph.
@@ -223,27 +251,72 @@ Every work branch has exactly one immutable intent:
 
 | Intent | Purpose | Allowed closure(s) |
 | --- | --- | --- |
-| `spike` | Learn, probe, compare, or falsify. Its code is reference-only. | Archive after its salient learnings and decisions are recorded in the integration branch's phase artifacts. |
+| `spike` | Learn, probe, compare, or falsify. Its code is reference-only. | Move to `ready_for_human_review` after its evidence checkpoint; archive only after explicit human authorization. |
 | `merge` | Implement a bounded slice intended to reach integration directly or through a stacked merge. | Merge after it has been successfully merged into its declared base, or archive as "explicitly unmerged" with the reason it was not adopted. |
 
 `integration` is a durable branch role, not a work-branch intent. It accepts new change implementation code only through deliberately promoted merge branches; it may also receive its declared base branch through the Base synchronization policy and contain direct control-plane commits for constitution metadata, manifests, indexes, state, learnings, decisions, and other documentation artifacts. It is finally merged into its base when the change completes.
 
 Branch intent does not change. A spike that uncovers a sound implementation still closes as a spike; a new merge work branch begins from integration or an active merge branch and uses the spike as evidence. This preserves a clean boundary between experimental code and code intended to converge.
 
-The work-branch manifest begins with `Status: active`. Its terminal status is `merged` when a merge branch has successfully merged into its declared base, `archived` when a spike is retained for reference, or `rejected` when a merge branch is explicitly abandoned. A closure record includes the resulting base commit or archive branch and pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A merge branch may become `rejected` only after its abandonment decision and reason are recorded in both its manifest and the phase's `DECISIONS.md`. `VCS/INDEX.md` needs to record only this immediate disposition; collapsing a completed merge stack into integration is not a closure requirement.
+#### Spike review lifecycle
+
+`ready_for_human_review` is a nonterminal **manifest status**, not a node in
+the Discovery, Architecture, or Delivery state machines:
+
+```text
+active -> ready_for_human_review -> archived
+  ^                |
+  +----------------+
+   human: continue or rescope
+```
+
+An agent may make the first transition only after it creates the required
+evidence checkpoint. The human may return the spike to `active` to continue or
+rescope it, authorize archival, or approve a phase gate. A human phase-gate
+approval does not promote spike code: the spike is archived as reference-only,
+and the incoming phase begins a new allowed branch from integration.
+
+The work-branch manifest begins with `Status: active`. A spike may become
+`ready_for_human_review`; its terminal status is `archived` when it is retained
+for reference. A merge branch's terminal status is `merged` when it has
+successfully reached its declared base or `rejected` when explicitly abandoned.
+A closure record includes the resulting base commit or archive branch and
+pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A
+merge branch may become `rejected` only after its abandonment decision and
+reason are recorded in both its manifest and the phase's `DECISIONS.md`.
+`VCS/INDEX.md` needs to record only this immediate disposition; collapsing a
+completed merge stack into integration is not a closure requirement.
 
 Merge-stack closure is topologically ordered. An active merge branch may not be merged or rejected while it has active merge descendants. Each descendant must first merge into its declared base or be rejected and archived. If a parent merge branch is rejected, reject and archive any remaining merge descendants from the leaves upward; no descendant may bypass its declared base to reach integration.
 
-#### Archive closure
+#### Spike evidence checkpoint and archive closure
 
-Archiving is a rename into the change's archive namespace, not deletion or an untracked dead end. To archive a work branch:
+Before an agent may mark a spike `ready_for_human_review`, it must:
 
-1. ensure its salient findings and consequential decisions are recorded in the integration branch's phase `LEARNINGS.md` and `DECISIONS.md` files;
+1. commit the spike's experimental code, tests, fixtures, and local notes, and
+   verify that its worktree is clean;
+2. update the integration branch's current control-plane artifacts with the
+   salient findings, consequential decisions, manifest status, and handoff;
+3. record the evidence commit(s), relevant tests, and human-UAT status in the
+   manifest; and
+4. recommend, but not perform, a branch disposition.
+
+Archiving is a rename into the change's archive namespace, not deletion or an
+untracked dead end. To archive a spike after explicit human authorization:
+
+1. verify the evidence checkpoint and record the explicit human authorization;
 2. rename its ref to `codex/<change>/archive/<intent>/<name>`;
-3. update its manifest and `VCS/INDEX.md` with `Status: archived` for a spike or `Status: rejected` for an explicitly abandoned merge branch, the archive branch name, and pointers to those phase artifacts;
-4. verify that the integration artifacts, closure record, and archive branch exist; when a shared remote is used, push and verify all three there. Push and verify the archive branch before deleting the active remote branch;
+3. update its manifest and `VCS/INDEX.md` with `Status: archived`, the archive
+   branch name, the human disposition, and pointers to the phase artifacts;
+4. verify that the integration artifacts, closure record, and archive branch
+   exist; when a shared remote is used, push and verify all three there. Push
+   and verify the archive branch before deleting the active remote branch;
 
 The archive branch preserves the exact experimental code and change set for later forensic reference. The integration workspace preserves the durable conclusion. No code from an archived spike is merged. If the canonical phase artifacts or archive branch cannot be verified, leave the archive branch and any dedicated worktree in place.
+
+Rejected merge branches use the same rename and verification mechanics, but
+retain `Status: rejected` and their recorded abandonment decision. The spike
+human-disposition requirement does not replace the merge rejection rules.
 
 #### Merge closure
 
@@ -446,7 +519,14 @@ stateDiagram-v2
 
 Delivery failures must be classified before being fixed. A suspected structural flaw enters an explicit reopen evaluation. Local failures remain in Delivery; when the recorded decision is to reopen Architecture, close or archive the affected Delivery work branch and create a fresh Phase 2 merge branch rather than hiding a structural repair beneath a Phase 3 patch.
 
-### 5.5 State-machine discipline
+### 5.5 Work-branch review lifecycle
+
+The manifest lifecycle in [Spike review lifecycle](#spike-review-lifecycle)
+controls human review and closure of a spike. It deliberately does not alter an
+active phase's state-machine node. A phase transition still follows the overall
+change lifecycle and its normal control-plane transaction.
+
+### 5.6 State-machine discipline
 
 State machines are operational constraints, not decorative diagrams. Agents must identify both the current change-level phase and the current phase-level state before working, perform work appropriate to that state, and update the relevant state file whenever evidence causes a transition.
 
@@ -588,7 +668,23 @@ A plan must state:
 
 Plans should answer not merely **what will we build?**, but **what are we trying to learn or establish?**
 
-Every phase plan must contain explicit, observable phase exit criteria. A work branch's `Purpose` and `Exit evidence` are its branch-specific exit criteria and must be consistent with the current phase plan. Before accepting a phase gate, merging a merge branch, or declaring delivery complete, verify the relevant criteria and have the result approved by a human and/or a clean-room AI adjudicator that did not materially perform the evaluated work. Record the approval, its evidence, and the adjudicator in `DECISIONS.md`; include the relevant pointer in the branch closure record when applicable.
+Every phase plan must contain explicit, observable phase exit criteria. A work
+branch's `Purpose` and `Exit evidence` are its branch-specific exit criteria and
+must be consistent with the current phase plan. Before accepting a phase gate,
+merging a merge branch, or declaring delivery complete, verify the relevant
+criteria and have the result approved by a human and/or a clean-room AI
+adjudicator that did not materially perform the evaluated work. Record the
+approval, its evidence, and the adjudicator in `DECISIONS.md`; include the
+relevant pointer in the branch closure record when applicable.
+
+Record these approvals separately whenever applicable:
+
+- **Human UAT** answers whether the observed product behavior is acceptable.
+- **Human branch disposition** authorizes a spike to continue, rescope, or
+  archive.
+- **Human phase-gate approval** authorizes the change to advance phases.
+
+One does not imply another.
 
 ---
 
@@ -644,6 +740,25 @@ What would cause us to reconsider:
 
 A decision without reconsideration criteria risks becoming dogma.
 
+### 6.5 Discovery-to-Architecture handoff
+
+Before proposing a Discovery phase gate, `LEARNINGS.md` must contain a
+`Forward to Architecture` section with:
+
+```markdown
+### Proven boundaries
+### Decisions to preserve
+### Residual risks accepted
+### Open architecture choices
+### Evidence and fixtures to carry forward
+### Architecture acceptance checks
+### What is intentionally reference-only
+```
+
+Prepare the incoming Architecture plan, state, learnings, and decisions from
+this handoff before the phase-transition control-plane commit. They must not
+remain generic placeholders after the gate is proposed.
+
 ---
 
 ## 7. Uncertainty Discipline
@@ -667,6 +782,11 @@ When deciding what to do next, ask:
 
 > **What is the cheapest action that could materially change our understanding or design?**
 
+When a spike expands around a connected uncertainty, record the scope amendment
+in its plan and manifest before treating the new question as an exit criterion.
+This preserves the useful flexibility of exploration without letting a stale
+plan or checklist silently govern the branch.
+
 ---
 
 ## 8. Phase Gates
@@ -685,6 +805,11 @@ A useful gate review asks:
 - Are we advancing because uncertainty has fallen, or because we are tired of exploring?
 
 If the evidence does not support transition, remain in the phase.
+
+An agent may recommend a spike disposition only after the spike evidence
+checkpoint is committed. An agent may recommend a phase gate only after the
+required phase evidence is committed. The human records branch disposition and
+phase-gate approval separately; accepted UAT alone is not closure authority.
 
 ---
 
@@ -724,7 +849,12 @@ Every agent working on a governed change should follow this startup sequence:
 - patch around a fundamental architectural failure merely to make a task pass;
 - build large amounts of production scaffolding around intentionally disposable experiments;
 - create a work branch without first recording its intent and expected disposition in a VCS manifest;
-- create, merge, or archive a branch without updating `VCS/INDEX.md` as part of its creation or closure transaction;
+- create, change a spike's review status, merge, or archive a branch without
+  updating `VCS/INDEX.md` as part of its creation, review, or closure
+  transaction;
+- archive a spike, or infer its closure, without explicit human branch
+  disposition after `ready_for_human_review`;
+- treat human UAT as phase-gate approval or branch-closure authorization;
 - create a merge branch during Phase 1;
 - merge a spike into integration or silently change a work branch's declared intent;
 - erase failed experiments whose lessons remain valuable;
@@ -755,6 +885,12 @@ Testing serves different purposes at different phases.
 Test to **learn**.
 
 Use narrow experiments, assertions, probes, fixtures, and temporary harnesses. Preserve tests only when they encode durable knowledge.
+
+Choose validation in proportion to the claim and the change's blast radius.
+Phase 1 normally favors narrow tests that answer the current uncertainty. A
+broad refactor may require the full regression suite as a named evidence
+checkpoint. Record why the selected validation is sufficient; explicit user
+acceptance requirements override this default.
 
 ### Phase 2 — System Design & Architecture
 Test to **validate architecture**.
