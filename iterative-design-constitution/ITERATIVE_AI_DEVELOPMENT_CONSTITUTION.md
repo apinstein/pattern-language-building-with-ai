@@ -112,6 +112,31 @@ A change is not defined by the current working branch. Work requested within an 
 - **Routine local work** may follow the project's ordinary workflow without creating a governed change.
 - **A significant, independent change** initializes this constitution's workspace, integration manifest, and branch structure before implementation begins.
 
+#### Scope after Architecture Lock
+
+Architecture Lock does not give an agent standing permission to silently absorb
+new development requests. When an active locked change receives a request that
+is not in its current plan, the agent must identify the existing boundary or
+contract through which the request would fit, then ask the responsible human
+whether to amend the current change's Delivery scope or track the request
+separately.
+
+If the human authorizes the amendment, record the added use case, acceptance
+criteria, affected boundaries, and required regression or operational evidence
+in the Delivery plan, `DECISIONS.md`, and a change-level Acceptance Ledger
+entry. The amendment may proceed in Delivery only while it remains within the
+locked architecture's declared envelope. Evidence that it requires a material
+new boundary, invalidates a locked assumption, or exposes a fundamental unknown
+requires an explicit Architecture reopen decision. An independent outcome is a
+new change.
+
+`Complete` is terminal. A change reaches it only after its integration branch
+has merged into the declared base and that final integration has been verified.
+Agents must not reopen or extend a completed change. A later request is
+qualified as new work and may cite the completed change's architecture and
+evidence, but receives its own scope, acceptance criteria, and integration
+path.
+
 Each significant change receives a durable workspace, for example:
 
 ```text
@@ -339,9 +364,19 @@ human-disposition requirement does not replace the merge rejection rules.
 #### Merge closure
 
 Before merging a merge branch, record the required merge approval in the
-applicable Acceptance Ledger. If/when it is successfully merged into its
-declared base, update its manifest and `VCS/INDEX.md` to `Status: merged` with
-the resulting base commit, and verify the result.
+applicable Acceptance Ledger. The approval must identify evidence that every
+repaired or changed boundary has focused regression coverage and that the full
+relevant suite selected from the branch's impact is passing at the submitted
+commit. "Relevant" is determined by the declared affected contracts,
+integration seams, and blast radius; it is not a license to omit a known
+affected suite, nor a demand for the exhaustive Phase 3 delivery matrix.
+
+This is a merge-readiness gate for every branch intended to reach integration,
+including a Phase 2 branch. It establishes that the bounded slice is safe to
+integrate; it does not by itself establish that the whole change is delivery
+ready. If/when the branch is successfully merged into its declared base, update
+its manifest and `VCS/INDEX.md` to `Status: merged` with the resulting base
+commit, and verify the result.
 
 If/when a merge branch is explicitly abandoned rather than adopted, do not
 merge it. Record the abandonment decision and reason in `DECISIONS.md` and the
@@ -391,7 +426,7 @@ If the team still cannot explain the important constraints and failure modes of 
 
 ### Phase 2 — System Design & Architecture
 
-**Objective:** discover a system structure that survives contact with implementation.
+**Objective:** converge on and implement a system structure that survives contact with implementation.
 
 Using Phase 1 evidence, design the system as if starting fresh. Do not automatically evolve the proof-of-concept architecture.
 
@@ -399,14 +434,18 @@ Typical work includes:
 
 - generating and comparing candidate architectures;
 - defining boundaries, responsibilities, interfaces, and data flows;
-- implementing enough of the architecture to expose hidden coupling and incorrect abstractions;
-- exercising representative end-to-end paths;
+- implementing the selected architecture far enough to expose hidden coupling and incorrect abstractions;
+- exercising representative end-to-end paths and the scoped acceptance path;
+- repairing boundaries with focused regression coverage and integrating verified architectural slices;
 - revisiting decisions when implementation produces contradictory evidence;
 - rewriting substantial portions when warranted.
 
 Multiple architectural iterations are expected.
 
-The goal is **convergence**, not merely a functioning implementation.
+The goal is **convergence**, not merely a functioning implementation. Phase 2
+is not diagram-only design followed by default implementation in Phase 3: it
+may contain all implementation and validation needed to satisfy the change's
+scoped acceptance criteria.
 
 #### Architectural convergence
 
@@ -428,11 +467,25 @@ Architecture Lock is a deliberate decision, recorded in `DECISIONS.md` and refle
 
 Lock does **not** mean architecture can never change. It means architectural changes now require explicit justification rather than being the default mode of iteration.
 
+Architecture Lock selects the next lifecycle outcome; it does not automatically
+require Delivery:
+
+1. advance directly to `Complete` when the scoped acceptance criteria are
+   verified and approved; or
+2. advance to **Delivery** — Phase 3, the optional post-lock phase for
+   completing remaining work through the locked architecture — when the
+   existing scope still requires hardening, operationalization, compatibility
+   work, performance, security, polish, or another delivery commitment.
+
+Phase 3 work must remain within the active change's scope unless the human
+explicitly authorizes an aligned scope amendment under
+[Scope after Architecture Lock](#scope-after-architecture-lock).
+
 ---
 
 ### Phase 3 — Hardening, Optimization & Delivery
 
-**Objective:** turn the converged design into a reliable product.
+**Objective:** complete the remaining hardening and delivery commitments within a converged design's original or explicitly amended scope.
 
 Only now should the project aggressively invest in assets whose value depends on architectural stability.
 
@@ -450,7 +503,15 @@ Typical work includes:
 - user-facing polish;
 - production documentation.
 
-This delivery phase should optimize the system rather than continually rediscover its basic shape.
+This optional delivery phase should optimize and extend the locked system
+through its existing boundaries rather than continually rediscover its basic
+shape. It is appropriate when the original acceptance criteria still require
+delivery work or when the responsible human explicitly adds an architecturally
+aligned use case to the active change. It is not the default implementation
+phase for an architecture that merely became locked. It is typically substantial
+when a sophisticated change first needs a stable basic architecture and then
+requires significant implementation, use cases, or operational behavior to be
+completed through that architecture.
 
 If delivery work suggests a fundamental architectural flaw, preserve and classify the evidence before continuing structural work. If the recorded decision is to reopen Phase 2, close or archive the affected Phase 3 work branch and begin a fresh Phase 2 merge branch; do not repair the structural flaw on the Phase 3 branch.
 
@@ -473,14 +534,17 @@ stateDiagram-v2
     Discovery --> Architecture: Discovery gate satisfied
     Architecture --> Architecture: Continue convergence
     Architecture --> Discovery: Fundamental unknown discovered
-    Architecture --> Delivery: Architecture Lock
+    Architecture --> Complete: Lock and scoped acceptance approved; final integration verified
+    Architecture --> Delivery: Architecture Lock; delivery work or authorized aligned scope remains
     Delivery --> Delivery: Continue delivery work
     Delivery --> Architecture: Reopen decision recorded
-    Delivery --> Complete: Acceptance criteria satisfied
+    Delivery --> Complete: Acceptance criteria satisfied; final integration verified
     Complete --> [*]
 ```
 
 The change-level `STATE.md` records the current node in this lifecycle.
+`Complete` has no outgoing transition: a later request is new work, not a
+reason to reopen the completed change.
 
 ### 5.2 Discovery state machine
 
@@ -673,6 +737,26 @@ Once the phase gate is accepted, complete the following Git hygiene before switc
 
 Until the transition commit exists, the prior committed change-level state remains authoritative. If preparation is interrupted, reconcile the recorded branch dispositions and gate evidence, then retry the transition transaction; do not point the change-level state at an inactive or uninitialized phase.
 
+#### Direct completion from Architecture
+
+An Architecture-to-Complete transition is a completion transaction, not a
+silent omission of Delivery. Before final integration, close every active
+Architecture work branch, record the Architecture Lock evidence and the
+verified scoped acceptance criteria in the phase Acceptance Ledger, and append
+a change-level Acceptance Ledger entry that grants change-completion authority.
+Make one direct control-plane commit on integration that leaves Architecture at
+the terminal `ArchitectureLock` state and marks the change as ready for final
+integration; no Delivery phase state is created. Merge integration into its
+declared base and verify that the base contains the canonical artifacts and
+completion evidence. Only then record the change-level state as `Complete` in
+the base's canonical control-plane history and begin cleanup. The completion
+state is authoritative only after the final integration succeeds.
+
+This direct path is typical for a refactor of an existing capability: the
+architecture is established by preserving or improving the existing behavior,
+and the scoped regressions and relevant suites establish completion without a
+separate delivery phase.
+
 The repository may additionally maintain a project-level state file summarizing all active changes and their phases.
 
 ---
@@ -695,7 +779,7 @@ Plans should answer not merely **what will we build?**, but **what are we trying
 Every phase plan must contain explicit, observable phase exit criteria. A work
 branch's `Purpose` and `Exit evidence` are its branch-specific exit criteria and
 must be consistent with the current phase plan. Before accepting a phase gate,
-merging a merge branch, or declaring delivery complete, verify the relevant
+merging a merge branch, or declaring a change complete, verify the relevant
 criteria and have the result approved by a human and/or a clean-room AI
 adjudicator that did not materially perform the evaluated work. Record the
 rationale, evidence, and adjudicator in `DECISIONS.md`; record the canonical
@@ -708,6 +792,10 @@ Record these approvals as separate Acceptance Ledger types whenever applicable:
 - **Human branch disposition** authorizes a spike to continue, rescope, or
   archive.
 - **Human phase-gate approval** authorizes the change to advance phases.
+- **Human scope-amendment authorization** adds an architecturally aligned use
+  case to an active locked change's Delivery scope.
+- **Human completion authority** authorizes the terminal completion transaction
+  after its acceptance criteria have been verified.
 
 One ledger entry does not imply another. In particular, a Human UAT entry does
 not imply branch-disposition or phase-gate authority.
@@ -782,8 +870,8 @@ phase-level `ACCEPTANCE_LEDGER.md`. The phase ledger is the canonical record
 for phase-local acceptance, such as an experiment conclusion, accepted
 residual risk, architecture-boundary approval, or a bounded subset of UAT. The
 change-level ledger is the canonical record for change-wide authority, such as
-a phase-gate approval, full-version or cross-phase UAT, final delivery
-acceptance, or a cross-phase residual-risk acceptance.
+a phase-gate approval, full-version or cross-phase UAT, final change
+acceptance, a scope amendment, or a cross-phase residual-risk acceptance.
 
 Record each acceptance event in the narrowest applicable ledger. When a
 phase-local acceptance supports a change-wide action, record a distinct
@@ -810,7 +898,7 @@ authority of the assertion:
 ## ACC-<change>-<scope>-0007 — 2026-08-11T14:32:00Z
 
 Scope: change | phase | named subset
-Type: evidence | UAT | residual risk | architecture | branch disposition | phase gate | delivery
+Type: evidence | UAT | residual risk | architecture | scope amendment | branch disposition | phase gate | delivery | completion
 Subject: <feature, experiment, requirement, or named subset>
 Version under test: <commit SHA, build/version, environment, or N/A>
 Criteria and evidence: <artifact paths, entry IDs, test runs, and observations>
@@ -818,7 +906,7 @@ Assertion: <what is asserted>
 Asserted by: <human or agent identity>
 Adjudicated or approved by: <human, clean-room AI, or pending>
 Result: asserted | accepted | rejected | accepted with exceptions | superseded
-Authority granted: none | branch disposition | phase transition | change completion
+Authority granted: none | branch disposition | phase transition | scope amendment | change completion
 Supersedes: <Acceptance ID or none>
 ```
 
@@ -885,12 +973,13 @@ plan or checklist silently govern the branch.
 
 ## 8. Phase Gates
 
-Phase transitions are explicit decisions, not passive drift.
+Phase transitions and completion transitions are explicit decisions, not
+passive drift.
 
-Before advancing, an agent must evaluate the relevant exit criteria and record
-the result in the outgoing phase's Acceptance Ledger. A change-level
-phase-gate entry must then reference that evidence and record the authority to
-advance.
+Before advancing or completing, an agent must evaluate the relevant exit
+criteria and record the result in the outgoing phase's Acceptance Ledger. A
+change-level phase-gate or change-completion entry must then reference that
+evidence and record the authority to advance or complete.
 
 A useful gate review asks:
 
@@ -904,10 +993,10 @@ A useful gate review asks:
 If the evidence does not support transition, remain in the phase.
 
 An agent may recommend a spike disposition only after the spike evidence
-checkpoint is committed. An agent may recommend a phase gate only after the
-required phase evidence is committed. The human records branch disposition and
-phase-gate approval as separate Acceptance Ledger entries; accepted UAT alone
-is not closure authority.
+checkpoint is committed. An agent may recommend a phase gate or direct
+completion only after the required phase evidence is committed. The human
+records branch disposition, phase-gate approval, and completion authority as
+separate Acceptance Ledger entries; accepted UAT alone is not closure authority.
 
 ---
 
@@ -1000,7 +1089,12 @@ Test to **validate architecture**.
 
 Prioritize representative end-to-end flows, boundaries, contracts, integration seams, and architectural assumptions.
 
-Avoid exhaustive matrices until the design stabilizes.
+Before any Phase 2 merge branch reaches integration, verify focused regression
+coverage for every repaired or changed boundary and run the full relevant suite
+identified by its impact. Record that evidence in the merge approval. This
+merge-readiness requirement is not the exhaustive delivery matrix: avoid broad
+matrices that do not bear on the branch until the design and acceptance scope
+require them.
 
 ### Phase 3 — Hardening, Optimization & Delivery
 Test to **establish reliability**.
