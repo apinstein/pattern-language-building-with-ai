@@ -161,6 +161,20 @@ The integration branch is the isolated home for the whole change. It remains sep
 
 If the change needs updates from its base branch, merge the current base branch into the integration branch and resolve and validate the result there. Do not rebase or otherwise rewrite the integration branch as the ordinary synchronization mechanism. A more sophisticated compatibility, dependency, or future-change integration strategy requires an explicit, recorded override in `DECISIONS.md`.
 
+#### Checkpoint commits
+
+Commit each **coherent, verified slice** of work as soon as it is ready. A
+slice may include the implementation, focused regression coverage, and the
+documentation or state needed to explain that one result. It is not every
+small edit: keep closely related changes together and avoid manufacturing
+micro-commits that are hard to review, test, revert, or understand.
+
+In particular, after a repair has passed its focused and relevant regression
+tests, commit that repair before beginning or accumulating unrelated work.
+This creates a recoverable checkpoint with evidence while keeping unrelated
+changes out of the same commit. If the slice cannot yet be verified, keep its
+scope explicit and return to verification before treating it as a checkpoint.
+
 A change is expected to create numerous work branches as it moves through its phases. Whenever an agent identifies a bounded implementation or an uncertainty that is cheaper to investigate in isolation, it may create the permitted merge or spike branch for the current phase. Every branch creation must follow the manifest and index contract below.
 
 Active work branches are named by their declared intent:
