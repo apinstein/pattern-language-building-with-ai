@@ -54,6 +54,7 @@ The project must preserve not only what was built, but also:
 - what failed and why;
 - which assumptions were invalidated;
 - which decisions were made and on what evidence;
+- which acceptance assertions and approvals were made, for what scope and version;
 - which uncertainties remain.
 
 ### 2.6 Do not confuse activity with progress
@@ -117,6 +118,7 @@ Each significant change receives a durable workspace, for example:
 changes/
   <change-name>/
     STATE.md
+    ACCEPTANCE_LEDGER.md
     VCS/
       INDEX.md
       integration.md
@@ -125,6 +127,7 @@ changes/
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      ACCEPTANCE_LEDGER.md
       VCS/
         spike-http-semantics-01.md
     2-architecture/
@@ -132,6 +135,7 @@ changes/
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      ACCEPTANCE_LEDGER.md
       VCS/
         spike-auth-contract-01.md
         merge-retry-boundary-01.md
@@ -140,6 +144,7 @@ changes/
       PLAN.md
       LEARNINGS.md
       DECISIONS.md
+      ACCEPTANCE_LEDGER.md
       VCS/
         spike-release-upgrade-01.md
         merge-backoff-limit-01.md
@@ -211,7 +216,7 @@ Branch creation is a manifest transaction. When initializing a change, create `V
 
 Here, *transaction* means one logical, resumable operation; it does not require Git to make all metadata and ref mutations atomically. If creation or closure is interrupted, or concurrent metadata updates conflict, reconcile the manifests and rebuild `VCS/INDEX.md` before implementation continues.
 
-Agents update canonical manifests, index entries, state files, and phase artifacts through the integration branch (using a dedicated integration worktree or a brief checkout when necessary). They do not merge a spike merely to transfer control-plane metadata.
+Agents update canonical manifests, index entries, state files, Acceptance Ledgers, and phase artifacts through the integration branch (using a dedicated integration worktree or a brief checkout when necessary). They do not merge a spike merely to transfer control-plane metadata.
 
 A `spike` branch may use the integration branch or another active work branch as its base. A `merge` branch may use the integration branch or another active `merge` branch as its base. A `merge` branch must never use a `spike` as its base, so code intended to converge cannot terminate on a reference-only branch. The manifest makes any permitted recursive dependency explicit rather than inferring it from naming or conversation.
 
@@ -236,9 +241,7 @@ Status: active
 Purpose: establish retry behavior for HTTP 429 and 503
 Exit evidence: reproducible observations and a recorded conclusion
 Closure: pending
-Human UAT: pending
-Human branch disposition: pending
-Human phase-gate approval: pending
+Acceptance ledger references: none
 ```
 
 The integration manifest records its base branch and ref. A work-branch manifest records the actual branch and commit from which it begins; a spike may base on another active work branch, while a merge branch may base only on integration or another active merge branch. Together these records make the topology discoverable without requiring a separate hand-maintained graph.
@@ -295,8 +298,8 @@ The work-branch manifest begins with `Status: active`. A spike may become
 for reference. A merge branch's terminal status is `merged` when it has
 successfully reached its declared base or `rejected` when explicitly abandoned.
 A closure record includes the resulting base commit or archive branch and
-pointers to the relevant phase `LEARNINGS.md` and `DECISIONS.md` entries. A
-merge branch may become `rejected` only after its abandonment decision and
+pointers to the relevant phase `LEARNINGS.md`, `DECISIONS.md`, and Acceptance
+Ledger entries. A merge branch may become `rejected` only after its abandonment decision and
 reason are recorded in both its manifest and the phase's `DECISIONS.md`.
 `VCS/INDEX.md` needs to record only this immediate disposition; collapsing a
 completed merge stack into integration is not a closure requirement.
@@ -311,14 +314,15 @@ Before an agent may mark a spike `ready_for_human_review`, it must:
    verify that its worktree is clean;
 2. update the integration branch's current control-plane artifacts with the
    salient findings, consequential decisions, manifest status, and handoff;
-3. record the evidence commit(s), relevant tests, and human-UAT status in the
-   manifest; and
+3. record the evidence commit(s), relevant tests, and applicable Acceptance
+   Ledger entry IDs in the manifest; and
 4. recommend, but not perform, a branch disposition.
 
 Archiving is a rename into the change's archive namespace, not deletion or an
 untracked dead end. To archive a spike after explicit human authorization:
 
-1. verify the evidence checkpoint and record the explicit human authorization;
+1. verify the evidence checkpoint and record the explicit human authorization
+   in the applicable Acceptance Ledger;
 2. rename its ref to `codex/<change>/archive/<intent>/<name>`;
 3. update its manifest and `VCS/INDEX.md` with `Status: archived`, the archive
    branch name, the human disposition, and pointers to the phase artifacts;
@@ -334,13 +338,19 @@ human-disposition requirement does not replace the merge rejection rules.
 
 #### Merge closure
 
-If/when a merge branch is successfully merged into its declared base, update its manifest and `VCS/INDEX.md` to `Status: merged` with the resulting base commit, and verify the result.
+Before merging a merge branch, record the required merge approval in the
+applicable Acceptance Ledger. If/when it is successfully merged into its
+declared base, update its manifest and `VCS/INDEX.md` to `Status: merged` with
+the resulting base commit, and verify the result.
 
-If/when a merge branch is explicitly abandoned rather than adopted, do not merge it. Record the abandonment decision and reason, then close it through the archive procedure with `Status: rejected`.
+If/when a merge branch is explicitly abandoned rather than adopted, do not
+merge it. Record the abandonment decision and reason in `DECISIONS.md` and the
+applicable Acceptance Ledger, then close it through the archive procedure with
+`Status: rejected`.
 
 #### Change cleanup
 
-After the integration branch is merged into its base and the change is complete, verify that the base contains the canonical phase artifacts and that `VCS/INDEX.md` has no active work branches. Then remove any remaining dedicated worktrees for the change and delete every local and remote `codex/<change>/...` ref, including the integration and archive branches. The durable record is now the merged integration history and its artifacts in the base; raw exploratory code is intentionally eligible for cleanup.
+After the integration branch is merged into its base and the change is complete, verify that the base contains the canonical phase artifacts and Acceptance Ledgers and that `VCS/INDEX.md` has no active work branches. Then remove any remaining dedicated worktrees for the change and delete every local and remote `codex/<change>/...` ref, including the integration and archive branches. The durable record is now the merged integration history and its artifacts in the base; raw exploratory code is intentionally eligible for cleanup.
 
 By default, a change has one active path: the integration branch and, if nested work is necessary, a single chain of work branches. Parallel active leaves require an explicit decision, and integration may not merge into its base while any work branches remain unresolved.
 
@@ -657,7 +667,7 @@ The change-level and phase-level state files must agree. A phase transition is a
 Once the phase gate is accepted, complete the following Git hygiene before switching the change-level state:
 
 1. give every active work branch in the outgoing phase its required final disposition and update its manifest and `VCS/INDEX.md`;
-2. record durable conclusions, gate evidence, and approval in `LEARNINGS.md` and `DECISIONS.md`;
+2. record durable conclusions and gate evidence in `LEARNINGS.md` and `DECISIONS.md`, append the phase-level acceptance record, and append the change-level phase-gate authority record that references it;
 3. prepare or reactivate the incoming phase `STATE.md` with `Status: Pending activation` and its initial state-machine node;
 4. make one direct control-plane commit on the integration branch that marks the outgoing phase state inactive at its terminal node, marks the incoming phase state active, and updates the change-level `STATE.md` with the new phase, phase state, and active-phase pointer.
 
@@ -688,17 +698,19 @@ must be consistent with the current phase plan. Before accepting a phase gate,
 merging a merge branch, or declaring delivery complete, verify the relevant
 criteria and have the result approved by a human and/or a clean-room AI
 adjudicator that did not materially perform the evaluated work. Record the
-approval, its evidence, and the adjudicator in `DECISIONS.md`; include the
-relevant pointer in the branch closure record when applicable.
+rationale, evidence, and adjudicator in `DECISIONS.md`; record the canonical
+approval in the applicable Acceptance Ledger; and include the relevant pointer
+in the branch closure record when applicable.
 
-Record these approvals separately whenever applicable:
+Record these approvals as separate Acceptance Ledger types whenever applicable:
 
 - **Human UAT** answers whether the observed product behavior is acceptable.
 - **Human branch disposition** authorizes a spike to continue, rescope, or
   archive.
 - **Human phase-gate approval** authorizes the change to advance phases.
 
-One does not imply another.
+One ledger entry does not imply another. In particular, a Human UAT entry does
+not imply branch-disposition or phase-gate authority.
 
 ---
 
@@ -754,7 +766,75 @@ What would cause us to reconsider:
 
 A decision without reconsideration criteria risks becoming dogma.
 
-### 6.5 Discovery-to-Architecture handoff
+### 6.5 `ACCEPTANCE_LEDGER.md` — Append-only authority record
+
+An Acceptance Ledger records an assertion that a bounded subject has been
+accepted, rejected, accepted with exceptions, or superseded. It answers a
+different question from the other durable artifacts:
+
+- `LEARNINGS.md` records what was discovered.
+- `DECISIONS.md` records why a choice was made.
+- `ACCEPTANCE_LEDGER.md` records **who accepted what, for which exact scope or
+  version, on what evidence, and with what authority**.
+
+Every change has a change-level `ACCEPTANCE_LEDGER.md`; every phase has its own
+phase-level `ACCEPTANCE_LEDGER.md`. The phase ledger is the canonical record
+for phase-local acceptance, such as an experiment conclusion, accepted
+residual risk, architecture-boundary approval, or a bounded subset of UAT. The
+change-level ledger is the canonical record for change-wide authority, such as
+a phase-gate approval, full-version or cross-phase UAT, final delivery
+acceptance, or a cross-phase residual-risk acceptance.
+
+Record each acceptance event in the narrowest applicable ledger. When a
+phase-local acceptance supports a change-wide action, record a distinct
+change-level authority event that references the phase entry; do not copy the
+same evidence into both ledgers. A manifest or state file may summarize the
+current result, but it must reference ledger entry IDs. The latest relevant
+non-superseded entry for the same subject, version, and authority determines
+that result.
+
+The ledger is append-only. Never edit, delete, or silently replace a committed
+entry. Correct an error, revoke an acceptance, or record a later result by
+appending a new entry that identifies the entry it supersedes.
+
+An agent must append an assertion entry before it represents UAT or another
+acceptance as complete. When an agent receives such an assertion from a human,
+it records the reported assertion in the applicable ledger before relying on
+it. An AI assertion is a claim, not human acceptance, unless an authorized
+human or clean-room AI adjudicator separately records its approval.
+
+Each entry must include enough information to reproduce the scope and
+authority of the assertion:
+
+```markdown
+## ACC-<change>-<scope>-0007 — 2026-08-11T14:32:00Z
+
+Scope: change | phase | named subset
+Type: evidence | UAT | residual risk | architecture | branch disposition | phase gate | delivery
+Subject: <feature, experiment, requirement, or named subset>
+Version under test: <commit SHA, build/version, environment, or N/A>
+Criteria and evidence: <artifact paths, entry IDs, test runs, and observations>
+Assertion: <what is asserted>
+Asserted by: <human or agent identity>
+Adjudicated or approved by: <human, clean-room AI, or pending>
+Result: asserted | accepted | rejected | accepted with exceptions | superseded
+Authority granted: none | branch disposition | phase transition | change completion
+Supersedes: <Acceptance ID or none>
+```
+
+An Acceptance ID must be unique within the change. The `<scope>` component is
+`change` for the change-level ledger or the phase directory name for a
+phase-level ledger.
+
+For UAT, `Version under test` must identify an immutable commit or build and
+its relevant environment; it must never say only “current” or “latest.” A
+partial UAT entry must identify the exact accepted subset and any remaining
+coverage. UAT is an acceptance type, not special authority: it does not grant
+branch closure, phase transition, or change completion unless the recorded
+entry explicitly grants that authority and the constitution's separate rules
+for that action are met.
+
+### 6.6 Discovery-to-Architecture handoff
 
 Before proposing a Discovery phase gate, `LEARNINGS.md` must contain a
 `Forward to Architecture` section with:
@@ -769,9 +849,9 @@ Before proposing a Discovery phase gate, `LEARNINGS.md` must contain a
 ### What is intentionally reference-only
 ```
 
-Prepare the incoming Architecture plan, state, learnings, and decisions from
-this handoff before the phase-transition control-plane commit. They must not
-remain generic placeholders after the gate is proposed.
+Prepare the incoming Architecture plan, state, learnings, decisions, and
+Acceptance Ledger from this handoff before the phase-transition control-plane
+commit. They must not remain generic placeholders after the gate is proposed.
 
 ---
 
@@ -807,7 +887,10 @@ plan or checklist silently govern the branch.
 
 Phase transitions are explicit decisions, not passive drift.
 
-Before advancing, an agent must evaluate the relevant exit criteria and record the result.
+Before advancing, an agent must evaluate the relevant exit criteria and record
+the result in the outgoing phase's Acceptance Ledger. A change-level
+phase-gate entry must then reference that evidence and record the authority to
+advance.
 
 A useful gate review asks:
 
@@ -823,7 +906,8 @@ If the evidence does not support transition, remain in the phase.
 An agent may recommend a spike disposition only after the spike evidence
 checkpoint is committed. An agent may recommend a phase gate only after the
 required phase evidence is committed. The human records branch disposition and
-phase-gate approval separately; accepted UAT alone is not closure authority.
+phase-gate approval as separate Acceptance Ledger entries; accepted UAT alone
+is not closure authority.
 
 ---
 
@@ -847,13 +931,14 @@ Every agent working on a governed change should follow this startup sequence:
 4. Follow its pointer to the active phase and read that phase's `STATE.md`.
 5. Confirm the current state-machine node and available transitions.
 6. Read `VCS/INDEX.md`, `VCS/integration.md`, and the manifest for the current branch, if any.
-7. Read the current phase `PLAN.md`.
-8. Read relevant learnings and decisions.
-9. Inspect the relevant code.
-10. Confirm that the intended action is appropriate for the current phase, phase state, and branch intent.
-11. Work.
-12. Update state files whenever meaningful operational state changes.
-13. Update durable learnings and decisions whenever the state of knowledge changes.
+7. Read the change-level Acceptance Ledger, the active phase's Acceptance Ledger, and any entries referenced by the current manifest or state.
+8. Read the current phase `PLAN.md`.
+9. Read relevant learnings and decisions.
+10. Inspect the relevant code.
+11. Confirm that the intended action is appropriate for the current phase, phase state, branch intent, and current acceptance records.
+12. Work.
+13. Update state files whenever meaningful operational state changes.
+14. Update durable learnings, decisions, and acceptance records whenever the state of knowledge or authority changes.
 
 ### Agents MUST NOT
 
@@ -869,6 +954,10 @@ Every agent working on a governed change should follow this startup sequence:
 - archive a spike, or infer its closure, without explicit human branch
   disposition after `ready_for_human_review`;
 - treat human UAT as phase-gate approval or branch-closure authorization;
+- assert or represent UAT, a phase gate, or any other acceptance as complete
+  without first appending the applicable Acceptance Ledger entry;
+- edit, delete, or silently replace a committed Acceptance Ledger entry rather
+  than append a superseding entry;
 - create a merge branch during Phase 1;
 - merge a spike into integration or silently change a work branch's declared intent;
 - erase failed experiments whose lessons remain valuable;
@@ -926,7 +1015,7 @@ Documentation has two classes.
 
 ### Working artifacts
 
-Phase plans, experiments, learnings, state files, and decision records exist to support the design process. They may become historical but should remain available for forensic understanding.
+Phase plans, experiments, learnings, state files, Acceptance Ledgers, and decision records exist to support the design process. They may become historical but should remain available for forensic understanding.
 
 ### Evergreen documentation
 
@@ -960,6 +1049,10 @@ Suggested classifications:
 - **Evergreen** — canonical current documentation that must remain synchronized with the system.
 
 Promotion from temporary to evergreen should be deliberate.
+
+Acceptance Ledgers are historical, append-only records. Do not collapse or
+rewrite them into a current-status summary; summaries must retain references to
+the underlying acceptance IDs.
 
 ---
 
