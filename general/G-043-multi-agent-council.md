@@ -22,10 +22,12 @@ Deploy a **"Multi-Agent Council"** where numerous AI agents are orchestrated chr
 Rather than relying on a monolithic prompt to evaluate or synthesize a complex task, splinter the verification or planning process:
 1.  **Distinct Personas:** Create rigidly defined roles for distinct agents. For example, simultaneously prompt a "Ruthless Security Auditor," a "Pedantic Architect focused on DRYness," and an "Impatient End-User."
 2.  **Opinionated Blind Blinders:** Explicitly instruct each council member to focus *only* on their domain constraint and ruthlessly attack the generated output from that specific angle.
-3.  **Synthesis Agent:** Pass the outputs of the council to a separate synthesizing agent (or explicitly prompt the developer agent) to digest the diverse, hyper-focused feedback and negotiate a final, holistic solution.
+3.  **Clean-Room Challenger:** When the primary risk is commitment to an incumbent answer, assign one member the task statement, constraints, primary evidence, and acceptance criteria, but withhold the incumbent solution and its rationale. It must independently formulate or falsify an approach. Do not withhold evidence merely to make it independent.
+4.  **Synthesis Agent:** Pass the outputs of the council to a separate synthesizing agent (or explicitly prompt the developer agent) to digest the diverse, hyper-focused feedback and negotiate a final, holistic solution. Treat competing proposals as hypotheses and decide between them using available verifiers and empirical results, rather than majority vote or confidence.
 
 ⋇ ⋇ ⋇
 
 ## Related Smaller Patterns
 - **[G-040: Adversarial Verification Loops](G-040-adversarial-verification.md)**: The predecessor pattern; the Council is the scaled-up, multi-lens evolution of single-agent adversarial verification.
 - **[G-021: Saliency and Conflict Resolution](G-021-saliency-and-conflict-resolution.md)**: The Council surfaces inherent design conflicts, which then must be resolved through explicit context binding.
+- **[G-046: Empirical Intelligence Compounding](G-046-empirical-intelligence-compounding.md)**: Supplies the empirical learning loop that evaluates council proposals over successive iterations.
