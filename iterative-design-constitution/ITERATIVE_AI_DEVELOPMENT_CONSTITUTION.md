@@ -277,6 +277,59 @@ The integration manifest records its base branch and ref. A work-branch manifest
 
 Update the index as part of the same branch-creation or branch-closure transaction whenever a branch is created, merged, or archived. The manifests are authoritative; the index is a rebuildable materialized view. If its state is missing, stale, or inconsistent, rebuild it by reading `VCS/integration.md` and all `*/VCS/*.md` files, then regenerate the grouped links and statuses before continuing work.
 
+#### Branch topology explanations
+
+Whenever an agent explains branch topology in conversation or documentation,
+use a plain-text, indented `+->` tree in a `text` code block rooted at `main`.
+Include the ancestors needed to connect the relevant branches to `main`.
+This is a presentation of repository evidence, not a separate authoritative
+graph or permission to create dependencies.
+
+- Every branch line must show the exact Git branch name and its local tip
+  commit SHA, verified from the repository when preparing a live report.
+  Use `[Constitutional change: <canonical change name>]` for each change's
+  integration branch, taking the name from its canonical change artifacts.
+  Distinguish work branches with `[Merge branch]` or `[Spike branch]`, and
+  ordinary branches outside the constitutional workflow with `[Regular branch]`.
+  A human-readable label alone is insufficient.
+- Mark the current checkout with `← current checkout` on its branch line.
+  If HEAD is detached or the checkout lies outside the displayed scope, state
+  that explicitly below the tree rather than marking another branch.
+- Under each non-root branch, put its explicit fork commit or manifest-declared
+  base branch and commit on a separate, further-indented line when available.
+  Distinguish a verified historical fork from a declared base; do not present
+  a computed merge base as proof of the original fork. If a local ref, canonical
+  name, or base cannot be verified, mark it unavailable or unknown rather than
+  inventing a name or SHA.
+- Indent children beneath their actual fork or declared base branch. Show
+  sibling branches at the same indentation under their common parent; do not
+  turn siblings into a dependency chain. If landing order matters, add one
+  short line below the tree spelling it out.
+
+Reusable, project-neutral example (the stacked changes' declared bases and any
+required dependency override are assumed recorded; replace SHA placeholders
+with verified commits in a live report):
+
+```text
+main @ <main tip SHA>
++-> [Constitutional change: Shared foundation] codex/shared-foundation/integration @ <tip SHA>
+    declared base: main @ <base SHA>
+    +-> [Constitutional change: Import workflow] codex/import-workflow/integration @ <tip SHA>
+        declared base: codex/shared-foundation/integration @ <base SHA>
+        +-> [Constitutional change: Saved records] codex/saved-records/integration @ <tip SHA>
+            declared base: codex/import-workflow/integration @ <base SHA>
+            +-> [Merge branch] codex/saved-records/merge/updater-01 @ <tip SHA> ← current checkout
+                declared base: codex/saved-records/integration @ <base SHA>
++-> [Regular branch] codex/docs-cleanup @ <tip SHA>
+    forked from main at <fork SHA>
+```
+
+Landing order after required approvals: updater-01 → Saved records → Import workflow → Shared foundation → main; docs-cleanup lands independently.
+
+The tree does not change branch intent, phase restrictions, merge approvals,
+base synchronization, or closure rules. In particular, spikes remain
+reference-only and parallel active leaves still require an explicit decision.
+
 #### Phase and branch intent
 
 Phase determines the kind of progress being pursued. Branch intent determines whether the branch's code may enter integration. They are separate dimensions:
